@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clipper WEB</title>
+    <style>
+      :root {
+        --bg: #070b10;
+        --panel: #121b22;
+        --panel-alt: #0d1419;
+        --border: #2a3844;
+        --text: #edf5f8;
+        --muted: #a8bac4;
+        --accent: #f90000;
+        --accent-soft: rgba(249, 0, 0, 0.18);
+        --field: #0b1117;
+        --shadow: rgba(0, 0, 0, 0.28);
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      .app-shell {
+        width: min(980px, 100%);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(18,27,34,0.96), rgba(13,20,25,0.98));
+        box-shadow: 0 20px 50px var(--shadow);
+        overflow: hidden;
+      }
+
+      .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(9, 14, 18, 0.8);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 0.9rem;
+        border: 1px solid rgba(249, 0, 0, 0.5);
+        animation: pulse 1.8s ease-in-out infinite;
+      }
+
+      .embed-tag {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.75rem;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .app-body {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 0;
+      }
+
+      .panel {
+        padding: 22px;
+      }
+
+      .panel + .panel {
+        border-left: 1px solid var(--border);
+      }
+
+      .panel h2 {
+        margin: 0 0 16px;
+        font-size: 1.2rem;
+      }
+
+      label {
+        display: block;
+        margin: 0 0 8px;
+        font-size: 0.86rem;
+        color: var(--muted);
+      }
+
+      textarea,
+      input,
+      select,
+      button {
+        width: 100%;
+        font: inherit;
+      }
+
+      textarea,
+      input,
+      select {
+        background: var(--field);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        padding: 12px 14px;
+        outline: none;
+      }
+
+      textarea {
+        min-height: 200px;
+        resize: vertical;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items: end;
+        margin-top: 14px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--accent), #d10000);
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 12px 16px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        box-shadow: 0 10px 25px rgba(249, 0, 0, 0.35);
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      .output-box {
+        min-height: 220px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(9, 14, 18, 0.8);
+        padding: 16px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: #e7f2f6;
+        line-height: 1.6;
+      }
+
+      .status {
+        min-height: 18px;
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .status.error {
+        color: #ff8c8c;
+      }
+
+      .status.success {
+        color: #9ae3a7;
+      }
+
+      .swtoweb-frame-wrap {
+        position: relative;
+        width: 100%;
+        min-height: 360px;
+        margin-top: 24px;
+      }
+
+      #swtoweb-converter {
+        display: block;
+        width: 100%;
+        height: 520px;
+        border: 0;
+        opacity: 0;
+        transition: opacity 180ms ease;
+        background: #090c10;
+      }
+
+      #swtoweb-converter.is-loaded {
+        opacity: 1;
+      }
+
+      .swtoweb-loader {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        display: grid;
+        place-items: center;
+        gap: 12px;
+        align-content: center;
+        min-height: 360px;
+        border: 1px solid #303942;
+        border-radius: 8px;
+        background: #090c10;
+        color: #f4f7f8;
+        font: 16px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .swtoweb-loader span {
+        width: 34px;
+        height: 34px;
+        border: 3px solid rgba(249, 0, 0, 0.24);
+        border-top-color: #f90000;
+        border-radius: 50%;
+        animation: swtoweb-spin 800ms linear infinite;
+      }
+
+      .swtoweb-loader[hidden] {
+        display: none;
+      }
+
+      @keyframes swtoweb-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.12); }
+      }
+
+      @media (max-width: 760px) {
+        .app-body {
+          grid-template-columns: 1fr;
+        }
+
+        .panel + .panel {
+          border-left: 0;
+          border-top: 1px solid var(--border);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="brand">
+          <span class="brand-mark">C</span>
+          <span>Clipper WEB</span>
+        </div>
+        <div class="embed-tag">{{ 'Embed' if embed_mode else 'Standalone' }}</div>
+      </header>
+
+      <div class="app-body">
+        <section class="panel">
+          <h2>Encrypt or decrypt text</h2>
+
+          <label for="seed-word">Seed word</label>
+          <input id="seed-word" type="text" value="TEST" placeholder="Enter seed word" />
+
+          <label for="mode" style="margin-top: 14px;">Mode</label>
+          <select id="mode">
+            <option value="encrypt">Encrypt</option>
+            <option value="decrypt">Decrypt</option>
+          </select>
+
+          <div class="row">
+            <div style="width:100%;">
+              <label for="source-text">Input</label>
+              <textarea id="source-text" placeholder="Enter text to convert">HELLO WORLD</textarea>
+            </div>
+          </div>
+
+          <div class="row">
+            <button id="convert-btn" type="button">Convert</button>
+          </div>
+
+          <div id="status" class="status" aria-live="polite"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Result</h2>
+          <div id="output" class="output-box">Ready to translate.</div>
+        </section>
+      </div>
+
+      <div class="panel" style="border-top: 1px solid var(--border);">
+        <div class="swtoweb-frame-wrap">
+          <div class="swtoweb-loader" id="swtoweb-loader">
+            <span></span>
+            <strong>Loading converter...</strong>
+          </div>
+
+          <iframe
+            id="swtoweb-converter"
+            src="https://swtoweb.ex1.prxima.uk/?embed=1"
+            title="SolidworksToWeb animation converter"
+            loading="lazy"
+          ></iframe>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const swtowebIframe = document.getElementById("swtoweb-converter");
+      const swtowebLoader = document.getElementById("swtoweb-loader");
+      const swtowebLoaderText = swtowebLoader ? swtowebLoader.querySelector("strong") : null;
+      const swtowebMaxRetries = 3;
+      const swtowebRetryDelayMs = 7000;
+      let swtowebRetryCount = 0;
+      let swtowebReady = false;
+      let swtowebRetryTimer = null;
+
+      function showSwtowebFrame() {
+        swtowebReady = true;
+        window.clearTimeout(swtowebRetryTimer);
+        if (swtowebLoader) swtowebLoader.hidden = true;
+        if (swtowebIframe) swtowebIframe.classList.add("is-loaded");
+      }
+
+      function resetSwtowebFrame() {
+        if (!swtowebIframe || swtowebReady) return;
+
+        if (swtowebRetryCount >= swtowebMaxRetries) {
+          if (swtowebLoaderText) {
+            swtowebLoaderText.textContent = "Converter is taking longer than expected. Refresh this page to try again.";
+          }
+          return;
+        }
+
+        swtowebRetryCount += 1;
+        if (swtowebLoaderText) {
+          swtowebLoaderText.textContent = `Retrying converter... (${swtowebRetryCount}/${swtowebMaxRetries})`;
+        }
+
+        const nextUrl = new URL(swtowebIframe.src);
+        nextUrl.searchParams.set("retry", Date.now().toString());
+        swtowebIframe.classList.remove("is-loaded");
+        swtowebIframe.src = nextUrl.toString();
+        startSwtowebWatchdog();
+      }
+
+      function startSwtowebWatchdog() {
+        window.clearTimeout(swtowebRetryTimer);
+        swtowebRetryTimer = window.setTimeout(resetSwtowebFrame, swtowebRetryDelayMs);
+      }
+
+      window.addEventListener("message", event => {
+        if (event.origin !== "https://swtoweb.ex1.prxima.uk") return;
+        if (!event.data || event.data.type !== "swtoweb:resize") return;
+
+        showSwtowebFrame();
+        if (swtowebIframe) {
+          swtowebIframe.style.height = `${Math.max(360, Math.min(event.data.height, 1600))}px`;
+        }
+      });
+
+      startSwtowebWatchdog();
+
+      const convertButton = document.getElementById('convert-btn');
+      const sourceText = document.getElementById('source-text');
+      const seedWord = document.getElementById('seed-word');
+      const mode = document.getElementById('mode');
+      const output = document.getElementById('output');
+      const status = document.getElementById('status');
+
+      convertButton.addEventListener('click', async () => {
+        const text = sourceText.value.trim();
+        const seed = seedWord.value.trim();
+        const selectedMode = mode.value;
+
+        if (!seed) {
+          status.textContent = 'A seed word is required.';
+          status.className = 'status error';
+          return;
+        }
+
+        if (!text) {
+          status.textContent = 'Enter some text to convert.';
+          status.className = 'status error';
+          return;
+        }
+
+        status.textContent = 'Converting...';
+        status.className = 'status';
+
+        try {
+          const response = await fetch('/api/convert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, seed_word: seed, mode: selectedMode })
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || 'Conversion failed.');
+          }
+
+          output.textContent = data.result;
+          status.textContent = `Converted successfully in ${selectedMode} mode.`;
+          status.className = 'status success';
+        } catch (error) {
+          status.textContent = error.message;
+          status.className = 'status error';
+        }
+      });
+    </script>
+  </body>
+</html>

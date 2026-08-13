@@ -1,0 +1,12 @@
+services:
+  web:
+    image: kermitine/clipper-web:latest
+    build:
+      context: https://github.com/kermitine/Clipper-WEB.git#main
+      dockerfile: Dockerfile
+    container_name: clipper-web
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_ENV: production
+    restart: unless-stopped
