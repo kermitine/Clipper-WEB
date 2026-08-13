@@ -4,6 +4,7 @@ services:
     build:
       context: https://github.com/kermitine/Clipper-WEB.git#main
       dockerfile: Dockerfile
+    pull_policy: build
     container_name: clipper-web
     ports:
       - "5003:5000"
