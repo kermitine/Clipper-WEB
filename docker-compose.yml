@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: clipper-web
     ports:
-      - "5000:5000"
+      - "5003:5000"
     environment:
       FLASK_ENV: production
     restart: unless-stopped
