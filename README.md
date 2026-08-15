@@ -167,5 +167,8 @@ curl -X POST http://localhost:5000/api/convert \
   -d '{"text":"HELLO WORLD","seed_word":"TEST","mode":"encrypt"}'
 ```
 
+The API response includes `result` plus a `trace` array with the seed, word, and
+letter-level conversion steps shown in the web console.
+
 ## License
 This repository/project is licensed under the GNU Affero General Public v3.0-or-later. For more information, please consult the LICENSE file (located in the root of the project), or visit https://www.gnu.org/licenses/agpl-3.0.en.html to read the full license.

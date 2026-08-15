@@ -18,6 +18,8 @@
         --field-bg: #090c10;
         --success: #9ae3a7;
         --error: #ff8c8c;
+        --console-text: #d7f8df;
+        --console-muted: #789586;
       }
 
       * {
@@ -176,7 +178,7 @@
       }
 
       .output-box {
-        min-height: 220px;
+        min-height: 150px;
         border: 1px solid var(--border);
         border-radius: 8px;
         background: var(--field-bg);
@@ -195,6 +197,48 @@
         margin-left: 2px;
         background: var(--accent);
         vertical-align: -0.15em;
+        animation: caret-blink 900ms steps(2, start) infinite;
+      }
+
+      .result-panel {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+      }
+
+      .console-title {
+        margin-top: 18px;
+      }
+
+      .process-console {
+        min-height: 240px;
+        max-height: 380px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #05080b;
+        color: var(--console-text);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.82rem;
+        line-height: 1.55;
+        padding: 14px;
+        scrollbar-color: var(--console-muted) #05080b;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .console-line {
+        min-height: 1.55em;
+      }
+
+      .process-console.is-streaming .console-line:last-child::after {
+        content: "";
+        display: inline-block;
+        width: 0.55ch;
+        height: 1em;
+        margin-left: 3px;
+        background: var(--console-text);
+        vertical-align: -0.16em;
         animation: caret-blink 900ms steps(2, start) infinite;
       }
 
@@ -314,9 +358,19 @@
           <div id="status" class="status" aria-live="polite"></div>
         </section>
 
-        <section class="panel">
+        <section class="panel result-panel">
           <h2 class="panel-title">Result</h2>
           <div id="output" class="output-box">Ready to translate.</div>
+          <h2 class="panel-title console-title">Process console</h2>
+          <div
+            id="process-console"
+            class="process-console"
+            role="log"
+            aria-live="polite"
+            aria-label="Conversion process"
+          >
+            <div class="console-line">&gt; waiting for input</div>
+          </div>
         </section>
       </div>
     </main>
@@ -332,9 +386,12 @@
       const mode = document.getElementById('mode');
       const output = document.getElementById('output');
       const status = document.getElementById('status');
+      const processConsole = document.getElementById('process-console');
 
       const typewriterDelayMs = reduceMotion ? 0 : 28;
+      const consoleLineDelayMs = reduceMotion ? 0 : 55;
       let typewriterTimer = null;
+      let consoleTimer = null;
       let conversionRequestId = 0;
       let embedResizeFrame = null;
 
@@ -384,6 +441,58 @@
         scheduleEmbedResize();
       }
 
+      function stopConsoleAnimation() {
+        window.clearTimeout(consoleTimer);
+        consoleTimer = null;
+        processConsole.classList.remove('is-streaming');
+        processConsole.removeAttribute('aria-busy');
+        scheduleEmbedResize();
+      }
+
+      function appendConsoleLine(line) {
+        const lineElement = document.createElement('div');
+        lineElement.className = 'console-line';
+        lineElement.textContent = line;
+        processConsole.appendChild(lineElement);
+        processConsole.scrollTop = processConsole.scrollHeight;
+        scheduleEmbedResize();
+      }
+
+      function setConsoleLines(lines) {
+        stopConsoleAnimation();
+        processConsole.textContent = '';
+        lines.forEach(appendConsoleLine);
+      }
+
+      function playConsoleTrace(lines) {
+        const traceLines = Array.isArray(lines) && lines.length ? lines : ['> no process trace returned'];
+        stopConsoleAnimation();
+        processConsole.textContent = '';
+
+        if (reduceMotion) {
+          traceLines.forEach(appendConsoleLine);
+          return;
+        }
+
+        processConsole.classList.add('is-streaming');
+        processConsole.setAttribute('aria-busy', 'true');
+
+        let index = 0;
+
+        function printNextLine() {
+          if (index >= traceLines.length) {
+            stopConsoleAnimation();
+            return;
+          }
+
+          appendConsoleLine(traceLines[index]);
+          index += 1;
+          consoleTimer = window.setTimeout(printNextLine, consoleLineDelayMs);
+        }
+
+        printNextLine();
+      }
+
       function typeOutput(text) {
         stopTypewriter();
         const typedText = String(text);
@@ -418,6 +527,7 @@
       convertButton.addEventListener('click', async () => {
         const requestId = ++conversionRequestId;
         stopTypewriter();
+        stopConsoleAnimation();
 
         const text = sourceText.value.trim();
         const seed = seedWord.value.trim();
@@ -433,6 +543,12 @@
           return;
         }
 
+        const wordCount = text.split(/\s+/).filter(Boolean).length;
+        setConsoleLines([
+          '> request queued',
+          `> ${selectedMode} mode selected`,
+          `> ${wordCount} word(s) ready for conversion`
+        ]);
         setButtonLoading(true);
         setStatus('Converting...', 'is-loading');
 
@@ -452,12 +568,14 @@
 
           setButtonLoading(false);
           typeOutput(data.result);
+          playConsoleTrace(data.trace);
           setStatus(`Converted successfully in ${selectedMode} mode.`, 'success');
         } catch (error) {
           if (requestId !== conversionRequestId) return;
 
           setButtonLoading(false);
           stopTypewriter();
+          setConsoleLines(['> conversion failed', `> ${error.message}`]);
           setStatus(error.message, 'error');
         }
       });
