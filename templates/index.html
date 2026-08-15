@@ -325,9 +325,11 @@
   </head>
   <body class="{{ 'is-embed' if embed_mode else 'is-page' }}">
     <main class="converter-shell">
+      {% if not embed_mode %}
       <header class="converter-header">
         <h1 class="brand">clipper-web</h1>
       </header>
+      {% endif %}
 
       <div class="converter-grid">
         <section class="panel">
@@ -464,30 +466,100 @@
         lines.forEach(appendConsoleLine);
       }
 
-      function playConsoleTrace(lines) {
+      function getTraceOutputChange(line) {
+        const mappedCharacter = line.match(/^\[word (\d+)\] .+ -> ([A-Z])$/);
+        if (mappedCharacter) {
+          return {
+            wordNumber: Number(mappedCharacter[1]),
+            text: mappedCharacter[2]
+          };
+        }
+
+        const unchangedWord = line.match(/^\[word (\d+)\] number found; returning unchanged: (.*)$/);
+        if (unchangedWord) {
+          return {
+            wordNumber: Number(unchangedWord[1]),
+            text: unchangedWord[2]
+          };
+        }
+
+        return null;
+      }
+
+      function playSyncedConversion(result, lines, requestId, onComplete) {
         const traceLines = Array.isArray(lines) && lines.length ? lines : ['> no process trace returned'];
         stopConsoleAnimation();
-        processConsole.textContent = '';
+        stopTypewriter();
 
         if (reduceMotion) {
+          output.textContent = result;
+          processConsole.textContent = '';
           traceLines.forEach(appendConsoleLine);
+          scheduleEmbedResize();
+          onComplete();
           return;
         }
 
+        output.textContent = '';
+        output.classList.add('is-typing');
+        output.setAttribute('aria-busy', 'true');
+        processConsole.textContent = '';
         processConsole.classList.add('is-streaming');
         processConsole.setAttribute('aria-busy', 'true');
 
-        let index = 0;
+        let lineIndex = 0;
+        let lastSyncedWordNumber = 0;
+
+        function finishAnimation() {
+          if (requestId !== conversionRequestId) return;
+
+          if (output.textContent !== result) {
+            output.textContent = result;
+          }
+
+          stopTypewriter();
+          stopConsoleAnimation();
+          onComplete();
+        }
 
         function printNextLine() {
-          if (index >= traceLines.length) {
-            stopConsoleAnimation();
+          if (requestId !== conversionRequestId) return;
+
+          if (lineIndex >= traceLines.length) {
+            finishAnimation();
             return;
           }
 
-          appendConsoleLine(traceLines[index]);
-          index += 1;
-          consoleTimer = window.setTimeout(printNextLine, consoleLineDelayMs);
+          const line = traceLines[lineIndex];
+          appendConsoleLine(line);
+          lineIndex += 1;
+
+          const outputChange = getTraceOutputChange(line);
+          if (outputChange === null) {
+            consoleTimer = window.setTimeout(printNextLine, consoleLineDelayMs);
+            return;
+          }
+
+          const needsWordSpacing = output.textContent && outputChange.wordNumber !== lastSyncedWordNumber;
+          const segmentWithSpacing = `${needsWordSpacing ? ' ' : ''}${outputChange.text}`;
+          lastSyncedWordNumber = outputChange.wordNumber;
+          let characterIndex = 0;
+
+          function printNextOutputCharacter() {
+            if (requestId !== conversionRequestId) return;
+
+            if (characterIndex >= segmentWithSpacing.length) {
+              consoleTimer = window.setTimeout(printNextLine, consoleLineDelayMs);
+              return;
+            }
+
+            output.textContent += segmentWithSpacing.charAt(characterIndex);
+            characterIndex += 1;
+            scheduleEmbedResize();
+            typewriterTimer = window.setTimeout(printNextOutputCharacter, typewriterDelayMs);
+          }
+
+          printNextOutputCharacter();
         }
 
         printNextLine();
@@ -544,6 +616,7 @@
         }
 
         const wordCount = text.split(/\s+/).filter(Boolean).length;
+        output.textContent = '';
         setConsoleLines([
           '> request queued',
           `> ${selectedMode} mode selected`,
@@ -567,9 +640,11 @@
           }
 
           setButtonLoading(false);
-          typeOutput(data.result);
-          playConsoleTrace(data.trace);
-          setStatus(`Converted successfully in ${selectedMode} mode.`, 'success');
+          setStatus('Printing synchronized trace...', 'is-loading');
+          playSyncedConversion(data.result, data.trace, requestId, () => {
+            if (requestId !== conversionRequestId) return;
+            setStatus(`Converted successfully in ${selectedMode} mode.`, 'success');
+          });
         } catch (error) {
           if (requestId !== conversionRequestId) return;
 
